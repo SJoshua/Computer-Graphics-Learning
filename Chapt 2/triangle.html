@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Green Triangle</title>
+		<style>
+			body { margin: 0; }
+			canvas { display: block; }
+		</style>
+		<!-- Author: @SJoshua -->
+	</head>
+	<body>
+		<script src="js/three.js"></script>
+		<script>
+			// init renderer
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			document.body.appendChild(renderer.domElement);
+			
+			// init camera
+			var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 500);
+			camera.position.set(0, 0, 100);
+			camera.lookAt(0, 0, 0);
+
+			// init scene
+			var scene = new THREE.Scene();
+			
+			// create triangle (unnecessary)
+			var triangle = new THREE.Triangle(
+				new THREE.Vector3(-20, -20, 0),
+				new THREE.Vector3(20, 0, 0),
+				new THREE.Vector3(10, 30, 0)
+			);
+
+			// create a geometry
+			var geom = new THREE.Geometry();
+			geom.vertices.push(
+				triangle.a, 
+				triangle.b, 
+				triangle.c
+			);
+
+			geom.faces.push(new THREE.Face3(0, 1, 2));
+
+			// add mesh to the scene
+			var mesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({color: 0x00FF00}));
+			scene.add(mesh);
+			
+			// render it!
+			renderer.render(scene, camera);
+		</script>
+	</body>
+</html>

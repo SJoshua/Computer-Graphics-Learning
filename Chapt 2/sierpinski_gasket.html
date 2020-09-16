@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Sierpinski Gasket</title>
+		<style>
+			body { margin: 0; }
+			canvas { display: block; }
+		</style>
+		<!-- Author: @SJoshua -->
+	</head>
+	<body>
+		<script src="js/three.js"></script>
+		<script>
+			function random(min, max) {
+				return Math.floor(Math.random() * (max - min + 1)) + min;
+			};
+
+			function drawTriangle(scene, triangle) {
+				// create a geometry
+				var geom = new THREE.Geometry();
+				geom.vertices = triangle;
+
+				geom.faces.push(new THREE.Face3(0, 1, 2));
+
+				// add mesh to the scene
+				var mesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({color: 0x00FF00}));
+				scene.add(mesh);
+			}
+			
+			function drawSierpinskiGasket(scene, triangle) {
+				// generate points
+				var geom = new THREE.BufferGeometry();
+				var MAX_POINTS = 100000;
+				var positions = new Float32Array(MAX_POINTS * 3); // 3 vertices per point
+				geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+				// set draw range
+				var drawCount = 0; 
+				geom.setDrawRange(0, drawCount);
+
+				// material
+				var material = new THREE.PointsMaterial({color: 0xFF0000});
+				var points = new THREE.Points(geom, material);
+
+				scene.add(points);
+
+				// I love closures
+				var p = new THREE.Vector3();
+				var cnt = 0;
+
+				// return a updater
+				function updater() {
+					// generate new points
+					for (var i = 0; i < 200 && cnt < MAX_POINTS; i++ && cnt++) {
+						var t = triangle[random(0, 2)];
+						var q = new THREE.Vector3((t.x + p.x) / 2, (t.y + p.y) / 2, 0);
+						positions[cnt * 3] = q.x;
+						positions[cnt * 3 + 1] = q.y;
+						p = q;
+					}
+					// extend draw range
+					geom.setDrawRange(0, cnt);
+					geom.attributes.position.needsUpdate = true;
+				}
+
+				return updater;
+			}
+
+			// init renderer
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			document.body.appendChild(renderer.domElement);
+			
+			// init camera
+			var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+			camera.position.set(0, 0, 1000);
+			camera.lookAt(0, 0, 0);
+
+			// init scene
+			var scene = new THREE.Scene();
+			
+			var triangle = [
+				new THREE.Vector3(-500, -300, 0),
+				new THREE.Vector3(500, -200, 0),
+				new THREE.Vector3(300, 300, 0)
+			];
+
+			drawTriangle(scene, triangle);
+			var updateSierpinskiGasket = drawSierpinskiGasket(scene, triangle);
+			
+			// render the scene
+			function animate() {
+				requestAnimationFrame(animate);
+				updateSierpinskiGasket();
+				renderer.render(scene, camera);
+			}
+
+			animate();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Green Triangle with Shader</title>
+		<style>
+			body { margin: 0; }
+			canvas { display: block; }
+		</style>
+		<!-- Author: @SJoshua -->
+	</head>
+	<body>
+		<script src="js/three.js"></script>
+
+		<script id="vertexShader" type="x-shader/x-vertex">
+			void main()	{
+				gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+			}
+		</script>
+	
+		<script id="fragmentShader" type="x-shader/x-fragment">
+			void main()	{
+				gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+			}
+		</script>
+
+		<script>
+			function main() {
+				// init renderer
+				var renderer = new THREE.WebGLRenderer();
+				renderer.setSize(window.innerWidth, window.innerHeight);
+				document.body.appendChild(renderer.domElement);
+				
+				// init camera
+				var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
+				camera.position.set(0, 0, 30);
+
+				// init scene
+				var scene = new THREE.Scene();
+				
+				// create triangle (unnecessary)
+				var triangle = new THREE.Triangle(
+					new THREE.Vector3(-10, -10, 0),
+					new THREE.Vector3(10, 0, 0),
+					new THREE.Vector3(0, 10, 0)
+				);
+
+				// create a geometry - BufferGeometry only
+				var geometry = new THREE.BufferGeometry();
+				var vertices = new Float32Array([
+					triangle.a.x, triangle.a.y, triangle.a.z,
+					triangle.b.x, triangle.b.y, triangle.b.z,
+					triangle.c.x, triangle.c.y, triangle.c.z,
+				]);
+
+				geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+				// yes, shader
+				var material = new THREE.ShaderMaterial({
+					vertexShader: document.getElementById('vertexShader').textContent,
+					fragmentShader: document.getElementById('fragmentShader').textContent
+				});
+
+				var mesh = new THREE.Mesh(geometry, material);
+
+				scene.add(mesh);
+		
+				// render it!
+				renderer.render(scene, camera);
+			}
+
+			main();
+
+		</script>
+	</body>
+</html>

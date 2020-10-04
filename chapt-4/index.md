@@ -55,7 +55,7 @@ R_x(\theta_1)R_x(\theta_2) &= \left[
 \begin{matrix}
     1 & 0 & 0 & 0 \\
     0 & cos\theta_1 cos\theta_2 - sin\theta_1 sin\theta_2 & -sin\theta_1 cos\theta_2 - cos\theta_1 sin\theta_2 & 0 \\
-    0 & sin\theta_1 cos\theta_2 + cos\theta_1 sin\theta_2 & cos\theta_1 cos\theta_2 - sin\theta_1 sin\theta_2 \\
+    0 & sin\theta_1 cos\theta_2 + cos\theta_1 sin\theta_2 & cos\theta_1 cos\theta_2 - sin\theta_1 sin\theta_2 & 0\\
     0 & 0 & 0 & 1
 \end{matrix}
 \right] \\
@@ -102,8 +102,9 @@ T_1 T_2 &= \left[
 $$
 
 ### 3. 
-$\vec a = \vec u \times \vec v$
-
-$\vec b = \vec u \times \vec a$
+$$
+\vec a = \vec u \times \vec v \\
+\vec b = \vec u \times \vec a
+$$
 
 Now we have an orthogonal coordinate system $(\vec a, \vec b, \vec n)$.

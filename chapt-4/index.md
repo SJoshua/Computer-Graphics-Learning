@@ -102,8 +102,8 @@ T_1 T_2 &= \left[
 $$
 
 ### 3. 
-$$\vec a = \vec u \times \vec v$$
+$\vec a = \vec u \times \vec v$
 
-$$\vec b = \vec u \times \vec a$$
+$\vec b = \vec u \times \vec a$
 
 Now we have an orthogonal coordinate system $(\vec a, \vec b, \vec n)$.

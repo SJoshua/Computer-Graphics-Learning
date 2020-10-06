@@ -9,7 +9,6 @@ import { GLTFLoader } from 'https://threejs.org/examples/jsm/loaders/GLTFLoader.
 function main() {
     const canvas = document.querySelector('#c');
     const renderer = new THREE.WebGLRenderer({ canvas });
-
     const fov = 45;
     const aspect = 2;  // the canvas default
     const near = 0.1;
@@ -96,18 +95,23 @@ function main() {
 
     // load character model
     {
+        var root;
         var mixer;
+        var allowMove = 0;
+        var forceStop = 0;
         var walking = false;
+        var moving = false;
+        var turning_left = false;
+        var turning_right = false;
         var clock = new THREE.Clock();
 
         const gltfLoader = new GLTFLoader();
         
         gltfLoader.load('character_walk.glb', (gltf) => {
-            const root = gltf.scene;
-
+            root = gltf.scene;
             mixer = new THREE.AnimationMixer(root);
             scene.add(root);
-
+            
             var walk_start = mixer.clipAction(gltf.animations[1]);
             var walk = mixer.clipAction(gltf.animations[0]);
             var walk_stop = mixer.clipAction(gltf.animations[2]);
@@ -116,7 +120,9 @@ function main() {
 
             mixer.addEventListener('loop', function(e) {
                 let name = e.action.getClip().name;
+                allowMove = 2;
                 if (name == "Walk" && !walking) {
+                    allowMove = 0.4;
                     walk.stop();
                     walk_stop.reset();
                     walk_stop.play();
@@ -125,18 +131,44 @@ function main() {
 
             mixer.addEventListener('finished', function(e) {
                 let name = e.action.getClip().name;
+                allowMove = 2;
                 if (name == "Walk_Start") {
-                    walk.play();
-                } 
+                    if (walking) {
+                        walk.play();
+                    } else {
+                        allowMove = 0.4;
+                        walk_stop.reset();
+                        walk_stop.play();
+                    }
+                } else if (name == "Walk_Stop") {
+                    moving = false;
+                }
             });
-            
+
             document.addEventListener('keydown', function(e) {
-                if (!walking) {
-                    walking = true;
-                    walk_start.reset();
-                    walk_start.play();
-                } else {
+                if (e.key == 'w') {
+                    allowMove = 2;
+                    if (!walking) {
+                        walking = true;
+                        moving = true;
+                        forceStop = 0.2;
+                        walk_start.reset();
+                        walk_start.play();
+                    }
+                } else if (e.key == 'a') {
+                    turning_left = true;
+                } else if (e.key == 'd') {
+                    turning_right = true;
+                }
+            }, false);
+
+            document.addEventListener('keyup', function(e) {
+                if (e.key == 'w') {
                     walking = false;
+                } else if (e.key == 'a') {
+                    turning_left = false;
+                } else if (e.key == 'd') {
+                    turning_right = false;
                 }
             }, false);
 
@@ -177,7 +209,23 @@ function main() {
 
         renderer.render(scene, camera);
 
-        if (mixer) mixer.update(clock.getDelta());
+        var delta = clock.getDelta();
+
+        if (turning_left) root.children[2].rotateY(delta);
+        if (turning_right) root.children[2].rotateY(-delta);
+        if (moving) {
+            var cut = 0;
+            if (allowMove > 0) { 
+                if (forceStop > 0) {
+                    cut = Math.min(forceStop, delta);
+                    forceStop -= cut;
+                }
+                var dis = Math.min(allowMove, delta - cut);
+                allowMove -= dis;
+                root.children[2].translateZ(dis);
+            }
+        }
+        if (mixer) mixer.update(delta);
 
         requestAnimationFrame(render);
     }

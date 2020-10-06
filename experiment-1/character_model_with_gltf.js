@@ -147,8 +147,8 @@ function main() {
 
             document.addEventListener('keydown', function(e) {
                 if (e.key == 'w') {
-                    allowMove = 999999;
-                    if (!walking) {
+                    if (!walking && !moving) {
+                        allowMove = 999999;
                         walking = true;
                         moving = true;
                         forceStop = 0.2;

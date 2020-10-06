@@ -120,7 +120,7 @@ function main() {
 
             mixer.addEventListener('loop', function(e) {
                 let name = e.action.getClip().name;
-                allowMove = 2;
+                allowMove = 999999;
                 if (name == "Walk" && !walking) {
                     allowMove = 0.4;
                     walk.stop();
@@ -131,7 +131,7 @@ function main() {
 
             mixer.addEventListener('finished', function(e) {
                 let name = e.action.getClip().name;
-                allowMove = 2;
+                allowMove = 999999;
                 if (name == "Walk_Start") {
                     if (walking) {
                         walk.play();
@@ -147,7 +147,7 @@ function main() {
 
             document.addEventListener('keydown', function(e) {
                 if (e.key == 'w') {
-                    allowMove = 2;
+                    allowMove = 999999;
                     if (!walking) {
                         walking = true;
                         moving = true;

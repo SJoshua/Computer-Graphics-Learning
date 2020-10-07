@@ -114,27 +114,28 @@ function main() {
             scene.add(root);
             
             var walk_start = mixer.clipAction(gltf.animations[1]);
+                walk_start.setLoop(THREE.LoopOnce);
+                walk_start.clampWhenFinished = true;
             var walk = mixer.clipAction(gltf.animations[0]);
             var walk_stop = mixer.clipAction(gltf.animations[2]);
-            walk_start.setLoop(THREE.LoopOnce);
-            walk_stop.setLoop(THREE.LoopOnce);
+                walk_stop.setLoop(THREE.LoopOnce);
             
             function playWalkStart() {
                 allowMove = inf;
                 walking = true;
                 moving = true;
-                walk_start.reset();
+                mixer.stopAllAction();
                 walk_start.play();
             }
 
             function playWalk() {
+                mixer.stopAllAction();
                 walk.play();
             }
 
             function playWalkStop() {
                 allowMove = after_walk;
-                walk.stop();
-                walk_stop.reset();
+                mixer.stopAllAction();
                 walk_stop.play();
             }
 

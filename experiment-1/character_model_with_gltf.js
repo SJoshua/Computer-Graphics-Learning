@@ -97,8 +97,9 @@ function main() {
     {
         var root;
         var mixer;
+        const inf = 1 << 20;
+        const after_walk = 0.4;
         var allowMove = 0;
-        var forceStop = 0;
         var walking = false;
         var moving = false;
         var turning_left = false;
@@ -117,29 +118,38 @@ function main() {
             var walk_stop = mixer.clipAction(gltf.animations[2]);
             walk_start.setLoop(THREE.LoopOnce);
             walk_stop.setLoop(THREE.LoopOnce);
+            
+            function playWalkStart() {
+                allowMove = inf;
+                walking = true;
+                moving = true;
+                walk_start.reset();
+                walk_start.play();
+            }
+
+            function playWalk() {
+                walk.play();
+            }
+
+            function playWalkStop() {
+                allowMove = after_walk;
+                walk.stop();
+                walk_stop.reset();
+                walk_stop.play();
+            }
 
             mixer.addEventListener('loop', function(e) {
                 let name = e.action.getClip().name;
-                allowMove = 999999;
-                if (name == "Walk" && !walking) {
-                    allowMove = 0.4;
-                    walk.stop();
-                    walk_stop.reset();
-                    walk_stop.play();
-                }
+                allowMove = inf;
+                if (name == "Walk" && !walking) playWalkStop();
             });
 
             mixer.addEventListener('finished', function(e) {
                 let name = e.action.getClip().name;
-                allowMove = 999999;
+                allowMove = inf;
                 if (name == "Walk_Start") {
-                    if (walking) {
-                        walk.play();
-                    } else {
-                        allowMove = 0.4;
-                        walk_stop.reset();
-                        walk_stop.play();
-                    }
+                    if (walking) playWalk();
+                    else playWalkStop();
                 } else if (name == "Walk_Stop") {
                     moving = false;
                 }
@@ -147,14 +157,7 @@ function main() {
 
             document.addEventListener('keydown', function(e) {
                 if (e.key == 'w') {
-                    if (!walking && !moving) {
-                        allowMove = 999999;
-                        walking = true;
-                        moving = true;
-                        forceStop = 0.2;
-                        walk_start.reset();
-                        walk_start.play();
-                    }
+                    if (!walking && !moving) playWalkStart();
                 } else if (e.key == 'a') {
                     turning_left = true;
                 } else if (e.key == 'd') {
@@ -214,16 +217,12 @@ function main() {
         if (turning_left) root.children[2].rotateY(delta);
         if (turning_right) root.children[2].rotateY(-delta);
         if (moving) {
-            var cut = 0;
+            var dist = 0.4 / (16 / 30) * delta;
             if (allowMove > 0) { 
-                if (forceStop > 0) {
-                    cut = Math.min(forceStop, delta);
-                    forceStop -= cut;
-                }
-                var dis = Math.min(allowMove, delta - cut);
-                allowMove -= dis;
-                root.children[2].translateZ(dis);
-            }
+                dist = Math.min(allowMove, dist);
+                allowMove -= dist;
+                root.children[2].translateZ(dist);
+            }            
         }
         if (mixer) mixer.update(delta);
 

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title> Game - Maze </title>
+		<style>
+			html, body {
+				margin: 0;
+				height: 100%;
+			}
+            #c {
+                width: 100%;
+                height: 100%;
+                display: block;
+            }
+			#info {
+				font-family: Arial, Helvetica, sans-serif;
+				position: absolute;
+				top: 0px;
+				width: 100%;
+				padding: 10px;
+				background-color: rgba(31, 223, 236, 0.63);
+				box-sizing: border-box;
+				text-align: center;
+				-moz-user-select: none;
+				-webkit-user-select: none;
+				-ms-user-select: none;
+				user-select: none;
+				pointer-events: none;
+				z-index: 1;
+			}
+		</style>
+		<!-- Author: @SJoshua -->
+	</head>
+	<body>
+		<div id="info">
+			Game - Maze
+			<br>
+			Model: <a href="https://hub.vroid.com/characters/8000286688165053944/models/8451699703832788261">salty prototype</a> (free license) by <a href="https://hub.vroid.com/users/21562126">@ステラー</a>
+		</div>
+        <canvas id="c"></canvas>
+	</body>
+	<script id="vertexShader" type="x-shader/x-vertex">
+		varying vec2 vUv;
+		void main() {
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+		}
+	</script>
+	<script id="fragmentShader" type="x-shader/x-fragment">
+		#include <common>
+
+		uniform vec3 iResolution;
+		uniform float iTime;
+		uniform sampler2D iChannel0;
+
+		// By Daedelus: https://www.shadertoy.com/user/Daedelus
+		// license: Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+		#define TIMESCALE 0.25 
+		#define TILES 1
+		#define COLOR 0.7, 1.6, 2.8
+
+		void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+			vec2 uv = fragCoord.xy / iResolution.xy;
+			uv.x *= iResolution.x / iResolution.y;
+			
+			vec4 noise = texture2D(iChannel0, floor(uv * float(TILES)) / float(TILES));
+			float p = 1.0 - mod(noise.r + noise.g + noise.b + iTime * float(TIMESCALE), 1.0);
+			p = min(max(p * 3.0 - 1.8, 0.1), 2.0);
+			
+			vec2 r = mod(uv * float(TILES), 1.0);
+			r = vec2(pow(r.x - 0.5, 2.0), pow(r.y - 0.5, 2.0));
+			p *= 1.0 - pow(min(1.0, 12.0 * dot(r, r)), 2.0);
+			
+			fragColor = vec4(COLOR, 1.0) * p;
+		}
+
+		varying vec2 vUv;
+
+		void main() {
+			mainImage(gl_FragColor, vUv * iResolution.xy);
+		}
+	</script>
+	<script type="module" src="main.js"></script>
+</html>

@@ -3,7 +3,7 @@ import * as THREE from 'https://threejs.org/build/three.module.js';
 
 // use jsm instead of js - they were deprecated.
 import { OrbitControls } from 'https://threejs.org/examples/jsm/controls/OrbitControls.js';
-import { VRMLoader } from 'https://threejs.org/examples/jsm/loaders/VRMLoader.js';
+// import { VRMLoader } from 'https://threejs.org/examples/jsm/loaders/VRMLoader.js';
 import { GLTFLoader } from 'https://threejs.org/examples/jsm/loaders/GLTFLoader.js';
 
 function main() {

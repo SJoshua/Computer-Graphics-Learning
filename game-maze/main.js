@@ -65,6 +65,7 @@ function main() {
 
     // use OrbitControls
     const controls = new OrbitControls(camera, canvas);
+    controls.maxDistance = 5;
     controls.target.set(0, 5, 0);
     controls.update();
 
@@ -147,7 +148,7 @@ function main() {
         const color = 0xFFFFFF;
         const intensity = 1;
         const light = new THREE.DirectionalLight(color, intensity);
-        light.position.set(5, 10, 2);
+        light.position.set(0, 10, 0);
         scene.add(light);
         scene.add(light.target);
     }
@@ -190,6 +191,8 @@ function main() {
         var moving = false;
         var turning_left = false;
         var turning_right = false;
+        var turning_speed = 2;
+        var moving_speed = 1;
         var clock = new THREE.Clock();
         var character;
 
@@ -277,7 +280,7 @@ function main() {
             frameArea(boxSize * 0.5, boxSize, boxCenter, camera);
 
             // update the Trackball controls to handle the new size
-            controls.maxDistance = boxSize * 10;
+            // controls.maxDistance = boxSize * 10;
             controls.target.copy(boxCenter);
             controls.update();
         });
@@ -303,38 +306,75 @@ function main() {
     }
 
     function update(time) {
-        var delta = clock.getDelta();
+        if (character) {
+            // animation
+            let delta = clock.getDelta();
 
-        if (turning_left) character.rotateY(delta);
-        if (turning_right) character.rotateY(-delta);
-        if (moving) {
-            var dist = 0.4 / (16 / 30) * delta;
-            if (allowMove > 0) { 
-                dist = Math.min(allowMove, dist);
-                allowMove -= dist;
-                character.translateZ(dist);
-                if (isCrashed()) {
-                    character.translateZ(-dist);
+            let posBefore = character.position.clone();
+            if (turning_left) character.rotateY(delta * turning_speed);
+            if (turning_right) character.rotateY(-delta * turning_speed);
+            if (moving) {
+                let dist = moving_speed * 0.4 / (16 / 30) * delta;
+                if (allowMove > 0) { 
+                    dist = Math.min(allowMove, dist);
+                    allowMove -= dist;
+                    character.translateZ(dist);
+                    if (isCrashed()) {
+                        character.translateZ(-dist);
+                    }
                 }
             }
-        }
-        if (mixer) mixer.update(delta);
-        const canvas = renderer.domElement;
+            if (mixer) mixer.update(delta);
+            // character.translateX(-5);
+            // character.translateY(5);
+            // character.translateZ(-5);
+            
+            // camera.position.set(
+            //     character.position.x,
+            //     character.position.y,
+            //     character.position.z
+            // );
+            
+            // character.translateX(5);
+            // character.translateY(-5);
+            // character.translateZ(5);
 
+            // camera.lookAt(
+            //     character.position.x,
+            //     character.position.y,
+            //     character.position.z
+            // );
+
+            controls.target.set(
+                character.position.x,
+                character.position.y + 1,
+                character.position.z
+            );
+
+            // console.log(camera.position);
+            camera.updateProjectionMatrix();
+        }
+        
+        // walls 
+        const canvas = renderer.domElement;
         for (let i = 0; i < uniforms.length; i++) {
             uniforms[i].iResolution.value.set(canvas.width, canvas.height, 1);
-            uniforms[i].iTime.value = time * 0.001 + (i * 65536) % 87 * 0.01;
+            // some random magic numbers
+            uniforms[i].iTime.value = time * 0.001 + (i * 65535) % 876 * 0.01; 
         }
+
+        // OrbitControls
+        controls.update();
     }
 
     function render(time) {
+        update(time);
+
         if (resizeRendererToDisplaySize(renderer)) {
             const canvas = renderer.domElement;
             camera.aspect = canvas.clientWidth / canvas.clientHeight;
             camera.updateProjectionMatrix();
         }
-
-        update(time);
 
         renderer.render(scene, camera);
 

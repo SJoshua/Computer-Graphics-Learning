@@ -54,8 +54,29 @@ function generateMaze(w, h, sx, sy) {
 }
 
 function main() {
+    const vertexShaderII = [
+        "uniform float offset;",
+        "varying vec2 vUv;",
+        THREE.ShaderChunk["common"],
+        THREE.ShaderChunk["skinning_pars_vertex"], //skinning vertex parser
+        "void main() {",
+            "vUv = uv;",
+            "vec3 transformed = vec3(position + normal * offset);",
+            THREE.ShaderChunk["skinbase_vertex"],
+            THREE.ShaderChunk["skinning_vertex"],
+            THREE.ShaderChunk["project_vertex"],
+        "}"
+    ].join("\n");
+
     const canvas = document.querySelector('#c');
-    const renderer = new THREE.WebGLRenderer({ canvas });
+    const renderer = new THREE.WebGLRenderer({ 
+        antialias: true,
+        canvas: canvas 
+    });
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputEncoding = THREE.GammaEncoding;
+    // renderer.gammaFactor = 2;
     const fov = 45;
     const aspect = 2;  // the canvas default
     const near = 0.1;
@@ -94,7 +115,13 @@ function main() {
         });
         const mesh = new THREE.Mesh(planeGeo, planeMat);
         mesh.rotation.x = Math.PI * -.5;
+        mesh.receiveShadow = true;
         scene.add(mesh);
+
+        const mesh_lower = new THREE.Mesh(planeGeo, planeMat);
+        mesh_lower.rotation.x = Math.PI * -.5;
+        mesh_lower.position.y = -0.001;
+        scene.add(mesh_lower);
     }
 
     // create maze
@@ -149,8 +176,14 @@ function main() {
         const intensity = 1;
         const light = new THREE.DirectionalLight(color, intensity);
         light.position.set(0, 10, 0);
+        light.castShadow = true;
+        light.shadow.camera.top = 20;
+        light.shadow.camera.bottom = -20;
+        light.shadow.camera.left = -20;
+        light.shadow.camera.right = 20;
+        light.shadow.camera.near = 0.1;
+        light.shadow.camera.far = 100;
         scene.add(light);
-        scene.add(light.target);
     }
 
     // update camera
@@ -192,14 +225,32 @@ function main() {
         var turning_left = false;
         var turning_right = false;
         var turning_speed = 2;
-        var moving_speed = 1;
+        var moving_speed = 2;
         var clock = new THREE.Clock();
         var character;
 
         const gltfLoader = new GLTFLoader();
         
+        var mesh_uniforms = {
+            u_resolution: { value: new THREE.Vector2() },
+            u_texture: { value: null }
+        };
+
         gltfLoader.load('character_walk.glb', (gltf) => {
             root = gltf.scene;
+            gltf.scene.traverse(function(child) {
+                if (child.isMesh) {
+                    mesh_uniforms.u_texture.value = child.material.emissiveMap;
+                    let shader_material = new THREE.ShaderMaterial({
+                        uniforms: mesh_uniforms,
+                        vertexShader: vertexShaderII,
+                        fragmentShader: document.getElementById('fragmentShaderII').textContent,
+                        skinning: true
+                    });
+                    child.castShadow = true;
+                    child.material = shader_material;
+                }
+            });
             character = root.children[2];
             character.position.set(1 - planeSize / 2, 0, 1 - planeSize / 2);
             scene.add(root);
@@ -208,10 +259,13 @@ function main() {
 
             var walk_start = mixer.clipAction(gltf.animations[1]);
                 walk_start.setLoop(THREE.LoopOnce);
+                walk_start.timeScale = moving_speed;
                 walk_start.clampWhenFinished = true;
             var walk = mixer.clipAction(gltf.animations[0]);
+                walk.timeScale = moving_speed;
             var walk_stop = mixer.clipAction(gltf.animations[2]);
                 walk_stop.setLoop(THREE.LoopOnce);
+                walk_stop.timeScale = moving_speed;
             
             function playWalkStart() {
                 allowMove = inf;
@@ -298,7 +352,7 @@ function main() {
     }
     
     function isCrashed() {
-        let characterBox = new THREE.Sphere(character.position, 0.25);
+        let characterBox = new THREE.Sphere(character.position, 0.2);
         for (let i = 0; i < boxList.length; i++) {
             if (characterBox.intersectsBox(boxList[i])) return true;
         }
@@ -325,26 +379,7 @@ function main() {
                 }
             }
             if (mixer) mixer.update(delta);
-            // character.translateX(-5);
-            // character.translateY(5);
-            // character.translateZ(-5);
             
-            // camera.position.set(
-            //     character.position.x,
-            //     character.position.y,
-            //     character.position.z
-            // );
-            
-            // character.translateX(5);
-            // character.translateY(-5);
-            // character.translateZ(5);
-
-            // camera.lookAt(
-            //     character.position.x,
-            //     character.position.y,
-            //     character.position.z
-            // );
-
             controls.target.set(
                 character.position.x,
                 character.position.y + 1,
@@ -362,6 +397,7 @@ function main() {
             // some random magic numbers
             uniforms[i].iTime.value = time * 0.001 + (i * 65535) % 876 * 0.01; 
         }
+        mesh_uniforms.u_resolution.value.set(canvas.width, canvas.height);
 
         // OrbitControls
         controls.update();

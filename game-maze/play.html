@@ -44,7 +44,7 @@
 		varying vec2 vUv;
 		void main() {
 			vUv = uv;
-			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+			gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 		}
 	</script>
 	<script id="fragmentShader" type="x-shader/x-fragment">
@@ -79,6 +79,15 @@
 
 		void main() {
 			mainImage(gl_FragColor, vUv * iResolution.xy);
+		}
+	</script>
+	<script id="fragmentShaderII" type="x-shader/x-fragment">
+		uniform sampler2D u_texture;
+	  
+		varying vec2 vUv;
+
+		void main(void) {
+			gl_FragColor = texture2D(u_texture, vUv);
 		}
 	</script>
 	<script type="module" src="main.js"></script>

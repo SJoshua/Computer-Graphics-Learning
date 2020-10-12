@@ -30,6 +30,7 @@
 				z-index: 1;
 			}
 		</style>
+		<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script> -->
 		<!-- Author: @SJoshua -->
 	</head>
 	<body>
@@ -58,7 +59,7 @@
 		// By Daedelus: https://www.shadertoy.com/user/Daedelus
 		// license: Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 		#define TIMESCALE 0.15 
-		#define TILES 1
+		#define TILES 2
 		#define COLOR 0.7, 1.6, 2.8
 
 		void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
@@ -72,7 +73,7 @@
 			vec2 r = mod(uv * float(TILES), 1.0);
 			r = vec2(pow(r.x - 0.5, 2.0), pow(r.y - 0.5, 2.0));
 			p *= 1.0 - pow(min(1.0, 12.0 * dot(r, r)), 2.0);
-			
+
 			fragColor = vec4(COLOR, 1.0) * p;
 		}
 
@@ -83,12 +84,12 @@
 		}
 	</script>
 	<script id="fragmentShaderII" type="x-shader/x-fragment">
-		uniform sampler2D u_texture;
+		uniform sampler2D iTexture;
 	  
 		varying vec2 vUv;
 
 		void main(void) {
-			gl_FragColor = texture2D(u_texture, vUv);
+			gl_FragColor = texture2D(iTexture, vUv);
 		}
 	</script>
 	<script type="module" src="main.js"></script>

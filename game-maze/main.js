@@ -8,14 +8,21 @@ import { OrbitControls } from 'https://threejs.org/examples/jsm/controls/OrbitCo
 import { GLTFLoader } from 'https://threejs.org/examples/jsm/loaders/GLTFLoader.js';
 
 /**
- * return a random integer in [0, max]
+ * Returns a random integer in [0, max].
  * @param {number} max 
- * @returns
  */
 function randomInt(max) {
     return Math.floor(Math.random() * Math.floor(max));
 }
 
+/**
+ * Returns a randomly generated maze. 
+ * (Prim's Algorithm)
+ * @param {number} w - width of area
+ * @param {number} h - height of area
+ * @param {number} sx - x of start point
+ * @param {number} sy - y of start point
+ */
 function generateMaze(w, h, sx, sy) {
     const move = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     let maze = [];
@@ -27,8 +34,16 @@ function generateMaze(w, h, sx, sy) {
         }
     }
 
+    /**
+     * @type {Array} (x, y) pairs as candidate walls.
+     */
     let list = [];
 
+    /**
+     * Add walls nearby to the list.
+     * @param {number} x 
+     * @param {number} y 
+     */
     function update(x, y) {
         maze[x][y] = 0;
         for (let k = 0; k < 4; k++) {
@@ -56,27 +71,21 @@ function generateMaze(w, h, sx, sy) {
             }
         }
     } 
+    
     return maze;
 }
 
 function main() {
-    const vertexShaderII = [
-        "uniform float offset;",
-        "varying vec2 vUv;",
-        THREE.ShaderChunk["common"],
-        THREE.ShaderChunk["skinning_pars_vertex"], //skinning vertex parser
-        "void main() {",
-            "vUv = uv;",
-            "vec3 transformed = vec3(position + normal * offset);",
-            THREE.ShaderChunk["skinbase_vertex"],
-            THREE.ShaderChunk["skinning_vertex"],
-            THREE.ShaderChunk["project_vertex"],
-        "}"
-    ].join("\n");
+    /**
+     * @type {Array} functions to be called in each animation frame
+     */
+    let updates = [];
+    
+    function register(func) {
+        updates.push(func);
+    }
 
-    let stats = new Stats();
-    document.querySelector("#stats").appendChild(stats.dom);
-
+    // create renderer
     const canvas = document.querySelector('#c');
     const renderer = new THREE.WebGLRenderer({ 
         antialias: true,
@@ -85,29 +94,40 @@ function main() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputEncoding = THREE.GammaEncoding;
-    // renderer.gammaFactor = 2;
+
+    // create camera
     const fov = 45;
     const aspect = 2;  // the canvas default
     const near = 0.1;
     const far = 100;
     const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     camera.position.set(0, 10, 20);
-
-    // use OrbitControls
-    const controls = new OrbitControls(camera, canvas);
-    controls.maxDistance = 5;
-    controls.target.set(0, 5, 0);
-    controls.update();
+    register(function() {
+        camera.updateProjectionMatrix();
+    });
 
     // create scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('black');
 
-    const planeSize = 40;
-    var maze;
-    let boxList = [];
+    // enable OrbitControls
+    const controls = new OrbitControls(camera, canvas);
+    controls.minDistance = 0.2;
+    controls.maxDistance = 5;
+    controls.target.set(0, 5, 0);
+    controls.update();
 
-    // create plane - to do: shader
+    // enable stats monitor
+    {
+        const stats = new Stats();
+        document.querySelector("#stats").appendChild(stats.dom);
+        register(function() {
+            stats.update();
+        });
+    }
+
+    // create plane
+    const planeSize = 40;
     {
         const loader = new THREE.TextureLoader();
         const texture = loader.load('images/checker.png');
@@ -127,6 +147,7 @@ function main() {
         mesh.receiveShadow = true;
         scene.add(mesh);
 
+        // avoid flicks
         const mesh_lower = new THREE.Mesh(planeGeo, planeMat);
         mesh_lower.rotation.x = Math.PI * -.5;
         mesh_lower.position.y = -0.001;
@@ -134,8 +155,40 @@ function main() {
     }
 
     // create maze
+    let box_list = [];
+    let tid = 0;
+    const trans_list = [
+        function(time, i, j) {
+            return time + i * j;
+        },
+        function(time, i, j) {
+            return time + i + j;
+        },
+        function(time, i, j) {
+            return time + i * 40 + j;
+        },
+        function(time, i, j) {
+            return time + (i * 123 + j * 456) % 789;
+        },
+        function(time, i, j) {
+            return time + (i + j) * 110 % 23;
+        },
+        function(time, i, j) {
+            return time * i + j;
+        },
+        function(time, i, j) {
+            return time + (i * 5 + j * 7) % 3;
+        },
+        function(time, i, j) {
+            return time + (i + j) % 2;
+        },
+        function(time, i, j) {
+            return time;
+        },
+    ];
     {
-        maze = generateMaze(planeSize / 2, planeSize / 2, 0, 0);
+        const maze = generateMaze(planeSize / 2, planeSize / 2, 0, 0);
+
         const loader = new THREE.TextureLoader();
         const texture = loader.load('./images/checker.png');
         texture.minFilter = THREE.NearestFilter;
@@ -143,34 +196,35 @@ function main() {
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
         
-        var uniforms = [];
-
         for (let i = 0; i < maze.length; i++) {
             for (let j = 0; j < maze[0].length; j++) {
                 if (maze[i][j]) {
-                    uniforms.push({
+                    const uniforms = {
                         iTime: { value: 0 },
                         iResolution:  { value: new THREE.Vector3(1, 1, 1) },
-                        iChannel0: { value: texture },
-                    });
+                        iChannel0: { value: texture }
+                    };
                     let wall = new THREE.Mesh(
                         new THREE.BoxBufferGeometry(1, 1, 1),
                         new THREE.ShaderMaterial({
                             vertexShader: document.getElementById('vertexShader').textContent,
                             fragmentShader: document.getElementById('fragmentShader').textContent,
-                            uniforms: uniforms[uniforms.length - 1]
+                            uniforms: uniforms
                         })
                     );
                     wall.position.set(i - planeSize / 2, 0.5, j - planeSize / 2);
-                    boxList.push(new THREE.Box3().setFromObject(wall));
+                    box_list.push(new THREE.Box3().setFromObject(wall));
+                    register(function(time) {
+                        uniforms.iTime.value = trans_list[tid % trans_list.length](time * 0.001, i, j);
+                    });
+                    wall.castShadow = true;
                     scene.add(wall);
                 }
             }
         }
     }
 
-
-    // light to ground
+    // Add Hemisphere Light
     {
         const skyColor = 0xB1E1FF;  // light blue
         const groundColor = 0xB97A20;  // brownish orange
@@ -179,7 +233,7 @@ function main() {
         scene.add(light);
     }
 
-    // light to scene
+    // Add Directional Light
     {
         const color = 0xFFFFFF;
         const intensity = 1;
@@ -224,35 +278,50 @@ function main() {
 
     // load character model
     {
-        var root;
-        var mixer;
-        const inf = 1 << 20;
-        const after_walk = 0.4;
-        var allowMove = 0;
-        var walking = false;
-        var moving = false;
-        var turning_left = false;
-        var turning_right = false;
-        var turning_speed = 2;
-        var moving_speed = 2;
-        var clock = new THREE.Clock();
-        var character;
-
         const gltfLoader = new GLTFLoader();
-        
-        var mesh_uniforms = {
-            u_resolution: { value: new THREE.Vector2() },
-            u_texture: { value: null }
-        };
 
         gltfLoader.load('character_walk.glb', (gltf) => {
-            root = gltf.scene;
-            gltf.scene.traverse(function(child) {
+            const inf = 1 << 20;
+            const after_walk = 0.4;
+            const turning_speed = 2;
+            const moving_speed = 2;
+            let allowMove = 0;
+            let walking = false;
+            let moving = false;
+            let turning_left = false;
+            let turning_right = false;
+            let locking = true;
+
+            const root = gltf.scene;
+            
+            const clock = new THREE.Clock();
+
+            // replace default material with shader material
+            root.traverse(function(child) {
                 if (child.isMesh) {
-                    mesh_uniforms.u_texture.value = child.material.emissiveMap;
+                    const uniforms = {
+                        iResolution: { value: new THREE.Vector2() },
+                        iTexture: { value: null }
+                    };  
+                    uniforms.iTexture.value = child.material.emissiveMap;
+                    register(function(time) {
+                        uniforms.iResolution.value.set(canvas.width, canvas.height); 
+                    });
                     let shader_material = new THREE.ShaderMaterial({
-                        uniforms: mesh_uniforms,
-                        vertexShader: vertexShaderII,
+                        uniforms: uniforms,
+                        vertexShader: [
+                            "uniform float offset;",
+                            "varying vec2 vUv;",
+                            THREE.ShaderChunk["common"],
+                            THREE.ShaderChunk["skinning_pars_vertex"], //skinning vertex parser
+                            "void main() {",
+                                "vUv = uv;",
+                                "vec3 transformed = vec3(position + normal * offset);",
+                                THREE.ShaderChunk["skinbase_vertex"],
+                                THREE.ShaderChunk["skinning_vertex"],
+                                THREE.ShaderChunk["project_vertex"],
+                            "}"
+                        ].join("\n"),
                         fragmentShader: document.getElementById('fragmentShaderII').textContent,
                         skinning: true
                     });
@@ -260,22 +329,35 @@ function main() {
                     child.material = shader_material;
                 }
             });
-            character = root.children[2];
+            
+            const character = root.children[2];
             character.position.set(1 - planeSize / 2, 0, 1 - planeSize / 2);
+            register(function() {
+                if (locking) {
+                    controls.target.set(
+                        character.position.x,
+                        character.position.y + 1,
+                        character.position.z
+                    );
+                    controls.update();
+                }
+            });
             scene.add(root);
             
-            mixer = new THREE.AnimationMixer(root);
+            const mixer = new THREE.AnimationMixer(root);
 
-            var walk_start = mixer.clipAction(gltf.animations[1]);
-                walk_start.setLoop(THREE.LoopOnce);
-                walk_start.timeScale = moving_speed;
-                walk_start.clampWhenFinished = true;
-            var walk = mixer.clipAction(gltf.animations[0]);
-                walk.timeScale = moving_speed;
-            var walk_stop = mixer.clipAction(gltf.animations[2]);
-                walk_stop.setLoop(THREE.LoopOnce);
-                walk_stop.timeScale = moving_speed;
-            
+            const walk_start = mixer.clipAction(gltf.animations[1]);
+            walk_start.setLoop(THREE.LoopOnce);
+            walk_start.timeScale = moving_speed;
+            walk_start.clampWhenFinished = true;
+
+            const walk = mixer.clipAction(gltf.animations[0]);
+            walk.timeScale = moving_speed;
+
+            const walk_stop = mixer.clipAction(gltf.animations[2]);
+            walk_stop.setLoop(THREE.LoopOnce);
+            walk_stop.timeScale = moving_speed;
+
             function playWalkStart() {
                 allowMove = inf;
                 walking = true;
@@ -314,11 +396,29 @@ function main() {
 
             document.addEventListener('keydown', function(e) {
                 if (e.key == 'w') {
-                    if (!walking && !moving) playWalkStart();
+                    if (!walking) {
+                        if (!moving) playWalkStart();
+                        else walking = true;
+                    } 
                 } else if (e.key == 'a') {
                     turning_left = true;
                 } else if (e.key == 'd') {
                     turning_right = true;
+                } else if (e.key == 'q') {
+                    if (controls.maxDistance > 1) {
+                        controls.maxDistance -= 1;
+                    }
+                } else if (e.key == 'e') {
+                    controls.maxDistance += 1;
+                } else if (e.key == 's') {
+                    locking = !locking;
+                    if (locking) {
+                        controls.maxDistance = 5;
+                    } else {
+                        controls.maxDistance = 100;
+                    }
+                } else if (e.key == 'c') {
+                    tid++;
                 }
             }, false);
 
@@ -332,6 +432,36 @@ function main() {
                 }
             }, false);
 
+            /**
+             * Check if character's position available.
+             */
+            function isCrashed() {
+                let characterBox = new THREE.Sphere(character.position, 0.2);
+                for (let i = 0; i < box_list.length; i++) {
+                    if (characterBox.intersectsBox(box_list[i])) return true;
+                }
+                return false;
+            }
+
+            register(function(time) {
+                const delta = clock.getDelta();
+
+                if (turning_left) character.rotateY(delta * turning_speed);
+                if (turning_right) character.rotateY(-delta * turning_speed);
+                if (moving) {
+                    let dist = moving_speed * 0.4 / (16 / 30) * delta;
+                    if (allowMove > 0) { 
+                        dist = Math.min(allowMove, dist);
+                        allowMove -= dist;
+                        character.translateZ(dist);
+                        if (isCrashed()) {
+                            character.translateZ(-dist);
+                        }
+                    }
+                }
+                if (mixer) mixer.update(delta);
+            });
+
             // compute the box that contains all the stuff
             // from root and below
             const box = new THREE.Box3().setFromObject(root);
@@ -343,14 +473,16 @@ function main() {
             frameArea(boxSize * 0.5, boxSize, boxCenter, camera);
 
             // update the Trackball controls to handle the new size
-            // controls.maxDistance = boxSize * 10;
             controls.target.copy(boxCenter);
             controls.update();
         });
     }
 
+    /**
+     * Resize renderer.
+     * @param {renderer} renderer 
+     */
     function resizeRendererToDisplaySize(renderer) {
-        const canvas = renderer.domElement;
         const width = canvas.clientWidth;
         const height = canvas.clientHeight;
         const needResize = canvas.width !== width || canvas.height !== height;
@@ -359,70 +491,27 @@ function main() {
         }
         return needResize;
     }
-    
-    function isCrashed() {
-        let characterBox = new THREE.Sphere(character.position, 0.2);
-        for (let i = 0; i < boxList.length; i++) {
-            if (characterBox.intersectsBox(boxList[i])) return true;
-        }
-        return false;
-    }
 
-    function update(time) {
-        if (character) {
-            // animation
-            let delta = clock.getDelta();
-
-            let posBefore = character.position.clone();
-            if (turning_left) character.rotateY(delta * turning_speed);
-            if (turning_right) character.rotateY(-delta * turning_speed);
-            if (moving) {
-                let dist = moving_speed * 0.4 / (16 / 30) * delta;
-                if (allowMove > 0) { 
-                    dist = Math.min(allowMove, dist);
-                    allowMove -= dist;
-                    character.translateZ(dist);
-                    if (isCrashed()) {
-                        character.translateZ(-dist);
-                    }
-                }
-            }
-            if (mixer) mixer.update(delta);
-            
-            controls.target.set(
-                character.position.x,
-                character.position.y + 1,
-                character.position.z
-            );
-
-            // console.log(camera.position);
-            camera.updateProjectionMatrix();
-
-            // stats
-			stats.update();
-        }
-        
-        // walls 
-        const canvas = renderer.domElement;
-        for (let i = 0; i < uniforms.length; i++) {
-            uniforms[i].iResolution.value.set(canvas.width, canvas.height, 1);
-            // some random magic numbers
-            uniforms[i].iTime.value = time * 0.001 + (i * 65535) % 876 * 0.01; 
-        }
-        mesh_uniforms.u_resolution.value.set(canvas.width, canvas.height);
-
-        // OrbitControls
-        controls.update();
-    }
-
-    function render(time) {
-        update(time);
-
+    register(function() {
         if (resizeRendererToDisplaySize(renderer)) {
             const canvas = renderer.domElement;
             camera.aspect = canvas.clientWidth / canvas.clientHeight;
             camera.updateProjectionMatrix();
         }
+    });
+    
+    /**
+     * Call registered functions with time.
+     * @param {number} time 
+     */
+    function update(time) {
+        for (let i = 0; i < updates.length; i++) {
+            updates[i](time);
+        }
+    }
+
+    function render(time) {
+        update(time);
 
         renderer.render(scene, camera);
 

@@ -2,10 +2,16 @@
 import * as THREE from 'https://threejs.org/build/three.module.js';
 
 // use jsm instead of js - they were deprecated.
+import Stats from 'https://threejs.org/examples/jsm/libs/stats.module.js';
 import { OrbitControls } from 'https://threejs.org/examples/jsm/controls/OrbitControls.js';
 // import { VRMLoader } from 'https://threejs.org/examples/jsm/loaders/VRMLoader.js';
 import { GLTFLoader } from 'https://threejs.org/examples/jsm/loaders/GLTFLoader.js';
 
+/**
+ * return a random integer in [0, max]
+ * @param {number} max 
+ * @returns
+ */
 function randomInt(max) {
     return Math.floor(Math.random() * Math.floor(max));
 }
@@ -67,6 +73,9 @@ function main() {
             THREE.ShaderChunk["project_vertex"],
         "}"
     ].join("\n");
+
+    let stats = new Stats();
+    document.querySelector("#stats").appendChild(stats.dom);
 
     const canvas = document.querySelector('#c');
     const renderer = new THREE.WebGLRenderer({ 
@@ -388,6 +397,9 @@ function main() {
 
             // console.log(camera.position);
             camera.updateProjectionMatrix();
+
+            // stats
+			stats.update();
         }
         
         // walls 

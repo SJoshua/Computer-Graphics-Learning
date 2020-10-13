@@ -459,6 +459,7 @@ function main() {
                         }
                     }
                 }
+
                 if (mixer) mixer.update(delta);
             });
 
@@ -510,6 +511,10 @@ function main() {
         }
     }
 
+    /**
+     * Render the scene @ 60 fps.
+     * @param {number} time 
+     */
     function render(time) {
         update(time);
 

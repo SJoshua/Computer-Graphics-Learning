@@ -131,7 +131,7 @@ function main() {
             bulbLight.add(new THREE.Mesh(bulbGeometry, bulbMat));
             bulbLight.position.set(x, y, z);
             bulbLight.castShadow = true;
-            bulbLight.shadow.bias = -0.00001;
+            bulbLight.shadow.bias = -0.00000001;
             scene.add(bulbLight);
         }
         addBulbLight(0.8, 4, 0);

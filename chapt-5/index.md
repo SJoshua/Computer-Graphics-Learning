@@ -54,3 +54,5 @@ Now we have new $VT' = T \times S' \times T_1$.
 
 ### 2.
 * [Rotating Cube](rotating_cube.html)
+
+> ![screenshot](screenshot.jpg)

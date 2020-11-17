@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title> Lighting Cube </title>
+		<style>
+			html, body {
+				margin: 0;
+				height: 100%;
+			}
+            #c {
+                width: 100%;
+                height: 100%;
+                display: block;
+            }
+			#info {
+				font-family: Arial, Helvetica, sans-serif;
+				position: absolute;
+				top: 0px;
+				width: 100%;
+				padding: 10px;
+				background-color: rgba(31, 223, 236, 0.63);
+				box-sizing: border-box;
+				text-align: center;
+				-moz-user-select: none;
+				-webkit-user-select: none;
+				-ms-user-select: none;
+				user-select: none;
+				pointer-events: none;
+				z-index: 1;
+			}
+		</style>
+		<!-- Author: @SJoshua -->
+	</head>
+	<body>
+		<!-- <div id="info"></div> -->
+		<div id="stats"></div>
+        <canvas id="c"></canvas>
+    </body>
+    
+    <script id="vertexShader_I" type="x-shader/x-vertex">
+        #define PHONG
+        varying vec3 vViewPosition;
+        #ifndef FLAT_SHADED
+            varying vec3 vNormal;
+        #endif
+        #include <common>
+        #include <uv_pars_vertex>
+        #include <uv2_pars_vertex>
+        #include <displacementmap_pars_vertex>
+        #include <envmap_pars_vertex>
+        #include <color_pars_vertex>
+        #include <fog_pars_vertex>
+        #include <morphtarget_pars_vertex>
+        #include <skinning_pars_vertex>
+        #include <shadowmap_pars_vertex>
+        #include <logdepthbuf_pars_vertex>
+        #include <clipping_planes_pars_vertex>
+        void main() {
+            #include <uv_vertex>
+            #include <uv2_vertex>
+            #include <color_vertex>
+            #include <beginnormal_vertex>
+            #include <morphnormal_vertex>
+            #include <skinbase_vertex>
+            #include <skinnormal_vertex>
+            #include <defaultnormal_vertex>
+        #ifndef FLAT_SHADED // Normal computed with derivatives when FLAT_SHADED
+            vNormal = normalize( transformedNormal );
+        #endif
+            #include <begin_vertex>
+            #include <morphtarget_vertex>
+            #include <skinning_vertex>
+            #include <displacementmap_vertex>
+            #include <project_vertex>
+            #include <logdepthbuf_vertex>
+            #include <clipping_planes_vertex>
+            vViewPosition = - mvPosition.xyz;
+            #include <worldpos_vertex>
+            #include <envmap_vertex>
+            #include <shadowmap_vertex>
+            #include <fog_vertex>
+        }
+        
+    </script>
+
+    <script id="fragmentShader_I" type="x-shader/x-fragment">
+        #define PHONG
+        uniform vec3 diffuse;
+        uniform vec3 emissive;
+        uniform vec3 specular;
+        uniform float shininess;
+        uniform float opacity;
+        #include <common>
+        #include <packing>
+        #include <dithering_pars_fragment>
+        #include <color_pars_fragment>
+        #include <map_pars_fragment>
+        #include <lightmap_pars_fragment>
+        #include <gradientmap_pars_fragment>
+        #include <fog_pars_fragment>
+        #include <bsdfs>
+        #include <lights_pars_begin>
+        #include <lights_phong_pars_fragment>
+        #include <normalmap_pars_fragment>
+        #include <specularmap_pars_fragment>
+        #include <logdepthbuf_pars_fragment>
+        #include <clipping_planes_pars_fragment>
+        void main() {
+            vec4 diffuseColor = vec4( diffuse, opacity );
+            ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );
+            vec3 totalEmissiveRadiance = emissive;
+            #include <color_fragment>
+            #include <specularmap_fragment>
+            #include <normal_fragment_begin>
+            #include <normal_fragment_maps>
+            #include <lights_phong_fragment>
+            #include <lights_fragment_begin>
+            #include <lights_fragment_maps>
+            #include <lights_fragment_end>
+                
+            vec3 outgoingLight;
+            
+            // Diffuse Only
+            outgoingLight += reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
+            // Add Specular
+            outgoingLight += reflectedLight.directSpecular + reflectedLight.indirectSpecular;
+            // Add Emissive Radiance
+            outgoingLight += totalEmissiveRadiance;
+
+            gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+        }        
+    </script>
+    
+	<script type="module" src="lighting_cube.js"></script>
+</html>

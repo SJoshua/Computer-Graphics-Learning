@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<title> Experiment 4 - Playground </title>
+	<style>
+		html,
+		body {
+			margin: 0;
+			height: 100%;
+		}
+
+		#c {
+			width: 100%;
+			height: 100%;
+			display: block;
+		}
+
+		#info {
+			font-family: Arial, Helvetica, sans-serif;
+			position: absolute;
+			top: 0px;
+			width: 100%;
+			padding: 10px;
+			background-color: rgba(31, 223, 236, 0.63);
+			box-sizing: border-box;
+			text-align: center;
+			-moz-user-select: none;
+			-webkit-user-select: none;
+			-ms-user-select: none;
+			user-select: none;
+			pointer-events: none;
+			z-index: 1;
+		}
+	</style>
+
+	<script src="./ammo.wasm.js"></script>
+
+	<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script> -->
+	<!-- Author: @SJoshua -->
+</head>
+
+<body>
+	<div id="info">
+		Experiment 4 - Playground | Character Model: <a
+			href="https://hub.vroid.com/characters/8000286688165053944/models/8451699703832788261">salty prototype</a>
+		(free license) by <a href="https://hub.vroid.com/users/21562126">@ステラー</a>
+		<hr>
+		[w] move [a] turn left [d] turn right [s] switch view [q] zoom in [r] zoom out
+		[c] change light pattern [p] teleport
+	</div>
+	<div id="stats"></div>
+	<canvas id="c"></canvas>
+</body>
+
+<script id="vertexShader" type="x-shader/x-vertex">
+	varying vec2 vUv;
+	void main() {
+		vUv = uv;
+		gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+	}
+</script>
+<script id="fragmentShader" type="x-shader/x-fragment">
+	#include <common>
+
+	uniform vec3 iResolution;
+	uniform float iTime;
+	uniform sampler2D iChannel0;
+
+	// By Daedelus: https://www.shadertoy.com/user/Daedelus
+	// license: Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+	#define TIMESCALE 0.15 
+	#define TILES 2
+	#define COLOR 0.7, 1.6, 2.8
+
+	void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+		vec2 uv = fragCoord.xy / iResolution.xy;
+		uv.x *= iResolution.x / iResolution.y;
+		
+		vec4 noise = texture2D(iChannel0, floor(uv * float(TILES)) / float(TILES));
+		float p = 1.0 - mod(noise.r + noise.g + noise.b + iTime * float(TIMESCALE), 1.0);
+		p = min(max(p * 3.0 - 1.8, 0.1), 2.0);
+		
+		vec2 r = mod(uv * float(TILES), 1.0);
+		r = vec2(pow(r.x - 0.5, 2.0), pow(r.y - 0.5, 2.0));
+		p *= 1.0 - pow(min(1.0, 12.0 * dot(r, r)), 2.0);
+
+		fragColor = vec4(COLOR, 1.0) * p;
+	}
+
+	varying vec2 vUv;
+
+	void main() {
+		mainImage(gl_FragColor, vUv * iResolution.xy);
+	}
+</script>
+<script id="fragmentShaderII" type="x-shader/x-fragment">
+	uniform sampler2D iTexture;
+	
+	varying vec2 vUv;
+
+	void main(void) {
+		gl_FragColor = texture2D(iTexture, vUv);
+	}
+</script>
+
+<script id="vs_xjf" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    varying vec4 vNormal;
+    varying vec3 pos;
+    varying vec3 NN;
+    varying vec3 pos1;
+    void main(){
+		vUv = uv;
+		vNormal = vec4(normal,1.0);
+		vec4 NNN=(modelViewMatrix * vNormal);
+		NN = vec3(NNN.x,NNN.y,NNN.z);
+		pos1 = position;
+		vec4 v = vec4(position,1.0);
+		vec4 mvPosition = modelViewMatrix * v;
+		pos = vec3(-mvPosition.x,-mvPosition.y,-mvPosition.z);
+		// pos = vec3(mvPosition.x,mvPosition.y,mvPosition.z);
+		gl_Position = projectionMatrix * mvPosition;
+	}
+</script>
+<script id="fs_xjf" type="x-shader/x-fragment">
+	precision mediump float;
+	uniform sampler2D texture1;//采样器
+	uniform float shininess ;
+
+	//光的位置
+	uniform vec3 u_light1Position;
+	uniform vec3 u_light1Color ;//光线的颜色
+
+	uniform vec3 u_light2Color ;//光线的颜色
+	//光的位置
+	uniform vec3 u_light2Position;
+
+	uniform vec3 eye;
+
+	varying vec2 vUv;
+	varying vec4 vNormal;
+	varying vec3 pos;
+	varying vec3 NN;
+	varying vec3 pos1;
+	void main(void){
+
+		// vec3 N = normalize(NN);
+		vec3 N = normalize(pos1);
+
+		vec3 L = normalize(u_light1Position-pos);//和上面一样入射光线向量L
+
+		float nDotL = max(dot(L,N), 0.0);//获取入射光线与法向量的夹角θ
+
+		vec4 a_color = texture2D(texture1, vUv);//物体表面材质的颜色
+
+		vec4 AmbientColor = vec4(0.4,0.4,0.4,1.0);//环境光
+		vec4 diffuseColor = a_color * vec4(u_light1Color, 1.0) * nDotL;//漫反射光的颜色
+
+		//根据改进的phong模型，使用 N*H 来代替 R*E
+
+		vec3 E = normalize( eye-pos );//从点P指向观察者的向量eye
+
+		vec3 H = normalize( L + E );
+
+		float Ks = pow( max(dot(N, H), 0.0), shininess );
+		vec4  specularColor = a_color * vec4(u_light1Color, 1.0)*vec4(1.0,1.0,1.0,1.0) * Ks ;//镜面反射光颜色
+		if(dot(L,N)<0.0){
+		 specularColor = vec4(0.0,0.0,0.0,1.0);
+		}
+
+   		//light2
+		vec3 L2 = normalize( u_light2Position-pos);//和上面一样入射光线向量L
+
+		float nDotL2 = max(dot(L2,N), 0.0);//获取入射光线与法向量的夹角θ
+
+		vec4 diffuseColor2 = a_color * vec4(u_light2Color, 1.0) * nDotL2;//漫反射光的颜色
+		vec3 E2 = normalize( eye - pos );//从点P指向观察者的向量eye
+		vec3 H2 = normalize( L2 + E2 );
+
+		float Ks2 = pow(max(dot(N, H2), 0.0),shininess);
+		vec4  specularColor2 = a_color * vec4(u_light2Color, 1.0)*vec4(1.0,1.0,1.0,1.0) * Ks2 ;//镜面反射光颜色
+		if(dot(L2,N)<0.0){
+		 specularColor2 = vec4(0.0,0.0,0.0,1.0);
+		}
+
+	   gl_FragColor = a_color * ( AmbientColor+ diffuseColor + specularColor+diffuseColor2 + specularColor2) ;
+
+	}
+</script>
+
+<script id="vs_ssr" type="x-shader/x-vertex">
+	varying vec2 vUv;
+	varying vec3 vNormal;
+	varying vec3 pos;
+	void main(){
+		vUv = uv;
+		vNormal = normal;//three.js内置变量
+		vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+		pos = mvPosition.xyz;
+		//projectionMatrix * mvPosition; 最终得到MVP矩阵
+		gl_Position = projectionMatrix * mvPosition;//模视变换矩阵
+
+	}
+</script>
+<script id="fs_ssr" type="x-shader/x-fragment">
+	precision mediump float;
+	uniform sampler2D texture1;
+	uniform float shininess;
+	//uniform vec4  specularProduct;
+	vec3 u_lightColor = vec3(1.0, 1.0, 1.0);//光线的颜色
+	//光的位置
+	uniform vec3 u_lightPosition;       
+	 
+	//纹理坐标
+	varying vec2 vUv;
+	varying vec3 pos;
+	//法线
+	varying vec3 vNormal;
+	
+	void main(void){
+		vec3 faceNormal = normalize(vNormal);//表面的法向量	向量n
+		vec3 u_lightDirection = normalize(u_lightPosition - pos) ;//向量l
+		
+		float nDotL = max(dot(u_lightDirection, faceNormal), 0.0);//获取入射光线与法向量的夹角θ
+		vec4 a_color = texture2D(texture1, vUv);//物体表面材质的反射矩阵
+		  
+		vec4 AmbientColor = vec4(0.2,0.2,0.2,1.0);//环境光
+		vec4 diffuseColor = a_color * vec4(u_lightColor, 1.0) * nDotL;//漫反射光的颜色
+	
+		//根据改进的phong模型，使用 N*H 来代替 R*E	
+		vec3 L = normalize( u_lightPosition - pos );//和上面一样入射光线向量L
+		vec3 E = normalize( -pos );//从点P指向观察者的向量eye
+		
+		vec3 H = normalize( L + E );
+		vec4 NN = vec4(vNormal,0);		
+		vec3 N = normalize( (vec4(-pos,1.0)*NN).xyz);
+		
+		float Ks = pow( max(dot(N, H), 0.0), 3.0 );//此光照模型没有考虑距离衰减因子
+		vec4  specular = Ks * vec4( 1.0, 1.0, 1.0, 1.0 );//镜面反射光颜色
+		gl_FragColor = a_color * (AmbientColor + diffuseColor+specular) ;
+	}
+</script>
+
+<script type="module" src="main.js"></script>
+
+</html>
